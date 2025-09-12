@@ -1,10 +1,158 @@
-﻿namespace BlogTestUI
+﻿using BlogDataLibrary.Data;
+using BlogDataLibrary.Database;
+using BlogDataLibrary.Models;
+using Microsoft.Extensions.Configuration;
+
+namespace BlogTestUI
 {
     internal class Program
     {
+        static SqlData GetConnection()
+        {
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json");
+
+            IConfiguration config = builder.Build();
+            ISqlDataAccess dbAccess = new SqlDataAccess(config);
+            SqlData db = new SqlData(dbAccess);
+
+            return db;
+        }
+
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello, World!");
+            SqlData db = GetConnection();
+
+            string option;
+            do
+            {
+                Console.WriteLine();
+                Console.WriteLine("==========================");
+                Console.WriteLine("Blog");
+                Console.WriteLine("==========================");
+                Console.WriteLine("[1] List posts");
+                Console.WriteLine("[2] Read post");
+                Console.WriteLine("[3] New post");
+                Console.WriteLine("[4] Register user");
+                Console.WriteLine("[5] Exit");
+                Console.Write("Choose an option: ");
+                option = Console.ReadLine();
+                Console.WriteLine("--------------------------");
+                Console.WriteLine();
+
+                switch (option)
+                {
+                    case "1":
+                        ListPosts(db);
+                        break;
+                    case "2":
+                        ShowPostDetails(db);
+                        break;
+                    case "3":
+                        AddPost(db);
+                        break;
+                    case "4":
+                        Register(db);
+                        break;
+                    case "5":
+                        Console.WriteLine("Press Enter to exit...");
+                        Console.ReadLine();
+                        break;
+                }
+            } while (option != "5");
+        }
+
+        private static UserModel GetCurrentUser(SqlData db)
+        {
+            Console.Write("Username: ");
+            string username = Console.ReadLine();
+            
+            Console.Write("Password: ");
+            string password = Console.ReadLine();
+
+            UserModel user = db.Authenticate(username, password);
+
+            return user;
+        }
+
+        private static void Authenticate(SqlData db)
+        {
+            UserModel user = GetCurrentUser(db);
+
+            if (user == null)
+            {
+                Console.WriteLine("Invalid credentials.");
+            }
+            else
+            {
+                Console.WriteLine($"Welcome, {user.UserName}!");
+            }
+        }
+
+        public static void Register(SqlData db)
+        {
+            Console.Write("Enter new username: ");
+            var username = Console.ReadLine();
+
+            Console.Write("Enter password: ");
+            var password = Console.ReadLine();
+
+            Console.Write("Enter first name: ");
+            var firstName = Console.ReadLine();
+
+            Console.Write("Enter last name: ");
+            var lastName = Console.ReadLine();
+
+            db.Register(username, firstName, lastName, password);
+        }
+
+        public static void AddPost(SqlData db)
+        {
+            UserModel user = GetCurrentUser(db);
+
+            Console.Write("Title: ");
+            string title = Console.ReadLine();
+
+            Console.WriteLine("Write body: ");
+            string body = Console.ReadLine();
+
+            PostModel post = new PostModel
+            {
+                Title = title,
+                Body = body,
+                DateCreated = DateTime.Now,
+                UserId = user.Id
+            };
+
+            db.AddPost(post);
+        }
+
+        public static void ListPosts(SqlData db)
+        {
+            List<ListPostModel> posts = db.ListPosts();
+
+            foreach (ListPostModel post in posts)
+            {
+                Console.WriteLine($"{post.Id}. Title: {post.Title} by {post.UserName} [{post.DateCreated.ToString("yyyy-MM-dd")}]");
+                Console.WriteLine($"{post.Body.Substring(0, 20)}...");
+                Console.WriteLine();
+            }
+        }
+
+        public static void ShowPostDetails(SqlData db)
+        {
+            Console.Write("Enter a post ID: ");
+            int id = Int32.Parse(Console.ReadLine());
+
+            ListPostModel post = db.ShowPostDetails(id);
+            Console.WriteLine(post.Title);
+            Console.WriteLine($"by {post.FirstName} {post.LastName} [{post.UserName}]");
+
+            Console.WriteLine();
+
+            Console.WriteLine(post.Body);
+            Console.WriteLine(post.DateCreated.ToString("MMM d yyyy"));
         }
     }
 }
